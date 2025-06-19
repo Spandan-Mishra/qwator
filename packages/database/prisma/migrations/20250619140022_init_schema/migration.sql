@@ -7,13 +7,13 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
-CREATE TABLE "Worker" (
+CREATE TABLE "Voter" (
     "id" SERIAL NOT NULL,
     "address" TEXT NOT NULL,
     "pending_amount" INTEGER NOT NULL,
     "locked_amount" INTEGER NOT NULL,
 
-    CONSTRAINT "Worker_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Voter_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -40,7 +40,7 @@ CREATE TABLE "Option" (
 -- CreateTable
 CREATE TABLE "Submission" (
     "id" SERIAL NOT NULL,
-    "worker_id" INTEGER NOT NULL,
+    "voter_id" INTEGER NOT NULL,
     "option_id" INTEGER NOT NULL,
     "task_id" INTEGER NOT NULL,
 
@@ -51,7 +51,7 @@ CREATE TABLE "Submission" (
 CREATE UNIQUE INDEX "User_address_key" ON "User"("address");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Worker_address_key" ON "Worker"("address");
+CREATE UNIQUE INDEX "Voter_address_key" ON "Voter"("address");
 
 -- AddForeignKey
 ALTER TABLE "Task" ADD CONSTRAINT "Task_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -60,7 +60,7 @@ ALTER TABLE "Task" ADD CONSTRAINT "Task_user_id_fkey" FOREIGN KEY ("user_id") RE
 ALTER TABLE "Option" ADD CONSTRAINT "Option_task_id_fkey" FOREIGN KEY ("task_id") REFERENCES "Task"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Submission" ADD CONSTRAINT "Submission_worker_id_fkey" FOREIGN KEY ("worker_id") REFERENCES "Worker"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Submission" ADD CONSTRAINT "Submission_voter_id_fkey" FOREIGN KEY ("voter_id") REFERENCES "Voter"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Submission" ADD CONSTRAINT "Submission_option_id_fkey" FOREIGN KEY ("option_id") REFERENCES "Option"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
