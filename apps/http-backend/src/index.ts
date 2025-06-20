@@ -11,6 +11,8 @@ export const supabase = createClient(
   process.env.SUPABASE_ANON_KEY || 'public-anon-key'
 );
 
+app.use(express.json());
+
 app.use('/api/user', userRouter);
 app.use('/api/voter', voterRouter);
 
