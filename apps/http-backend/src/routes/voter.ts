@@ -7,6 +7,27 @@ import { getNextTask } from "../services/task";
 
 const router: Router = Router();
 
+router.get('/balance', authVoterMiddleware, async (req, res) => {
+    const voterId = Number(req.voterId);
+
+    const voter = await prismaClient.voter.findFirst({
+        where: {
+            id: voterId
+        }
+    })
+
+    if (!voter) {
+        res.status(400).json({
+            message: "Invalid voter"
+        })
+        return;
+    }
+
+    res.json({
+        balance: voter.pending_amount + voter.locked_amount
+    })
+})
+
 router.post('/submission', authVoterMiddleware, async (req, res) => {
     const voterId = Number(req.voterId);
     const data = req.body;
@@ -20,19 +41,47 @@ router.post('/submission', authVoterMiddleware, async (req, res) => {
         return;
     }
     
-    const submission = await prismaClient.submission.create({
-        data: {
-            voter_id: voterId,
-            task_id: parsedData.data.task_id,
-            option_id: parsedData.data.option_id
-        }
+    const task = await getNextTask(voterId);
+    
+    if(!task || task.id !== parsedData.data.task_id) {
+        res.status(400).json({
+            message: "Invalid task"
+        })
+        return;
+    }
+
+    const amount = task.amount / Number(process.env.VOTERS_PER_TASK || 1000);
+
+    const response = await prismaClient.$transaction(async tx => {
+        const submission = await tx.submission.create({
+            data: {
+                voter_id: voterId,
+                task_id: parsedData.data.task_id,
+                option_id: parsedData.data.option_id,
+                amount
+            }
+        })
+
+        await tx.voter.update({
+            where: {
+                id: voterId
+            },
+            data: {
+                pending_amount: {
+                    increment: amount
+                }
+            }
+        })
+
+        return submission;
     })
 
-    const task = await getNextTask(voterId);
+    const nextTask = await getNextTask(voterId);
 
     res.json({
-        id: submission.id,
-        task: task ?? "No next task found"
+        id: response.id,
+        amount,
+        task: nextTask ?? "No next task found"
     })
 })
 
