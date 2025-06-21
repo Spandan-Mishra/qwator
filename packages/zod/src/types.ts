@@ -10,3 +10,8 @@ export const createTaskSchema = z.object({
     signature: z.string(),
     amount: z.number()
 })
+
+export const createSubmissionSchema = z.object({
+    task_id: z.number(),
+    option_id: z.number()
+})

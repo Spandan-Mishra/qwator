@@ -1,13 +1,13 @@
 import { Router } from "express";
 import { prismaClient } from "@repo/database"
 import jwt from "jsonwebtoken";
-import { authMiddleware } from "../middleware";
+import { authUserMiddleware } from "../middleware";
 import { supabase } from "..";
 import { createTaskSchema } from "@repo/zod/types";
 
 const router: Router = Router();
 
-router.get('/task', authMiddleware, async (req, res) => {
+router.get('/task', authUserMiddleware, async (req, res) => {
     const taskId = Number(req.query.taskId);
     const userId = Number(req.userId);
 
@@ -58,9 +58,9 @@ router.get('/task', authMiddleware, async (req, res) => {
     })
 })
 
-router.post('/task', authMiddleware, async (req, res) => {
+router.post('/task', authUserMiddleware, async (req, res) => {
     const data = req.body;
-    const userId = req.userId;
+    const userId = Number(req.userId);
 
     const parsedData = createTaskSchema.safeParse(data);
 
@@ -77,7 +77,7 @@ router.post('/task', authMiddleware, async (req, res) => {
                 title: parsedData.data?.title,
                 signature: parsedData.data?.signature,
                 amount: parsedData.data?.amount,
-                user_id: Number(userId)
+                user_id: userId
             }
         })
 
@@ -97,8 +97,8 @@ router.post('/task', authMiddleware, async (req, res) => {
     })
 })
 
-router.get('/presignedUrl', authMiddleware, async (req, res) => {
-    const userId = req.userId;
+router.get('/presignedUrl', authUserMiddleware, async (req, res) => {
+    const userId = Number(req.userId);
 
     const { data, error } = await supabase
     .storage
@@ -123,7 +123,7 @@ router.post('/signin', async (req, res) => {
     if (existingUser) {
         const token = jwt.sign({
             id: existingUser.id
-        }, process.env.JWT_SECRET || "secret");
+        }, process.env.USER_SECRET || "secret");
 
         res.json({
             token
@@ -137,7 +137,7 @@ router.post('/signin', async (req, res) => {
 
         const token = jwt.sign({
             id: user.id
-        }, process.env.JWT_SECRET || "secret")
+        }, process.env.USER_SECRET || "secret")
 
         res.json({
             token
