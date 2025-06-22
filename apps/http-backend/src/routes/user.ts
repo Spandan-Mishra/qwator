@@ -6,6 +6,7 @@ import { supabase } from "..";
 import { createTaskSchema } from "@repo/zod/types";
 
 const router: Router = Router();
+const LAMPORTS_PER_SOL = 1_000_000_000;
 
 router.get('/task', authUserMiddleware, async (req, res) => {
     const taskId = Number(req.query.taskId);
@@ -76,7 +77,7 @@ router.post('/task', authUserMiddleware, async (req, res) => {
             data: {
                 title: parsedData.data?.title,
                 signature: parsedData.data?.signature,
-                amount: parsedData.data?.amount,
+                amount: (parsedData.data?.amount ?? 0) * LAMPORTS_PER_SOL,
                 user_id: userId
             }
         })

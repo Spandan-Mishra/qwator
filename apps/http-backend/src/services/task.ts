@@ -10,7 +10,10 @@ export const getNextTask = async (voterId: number) => {
                 }
             }
         },
-        include: {
+        select: {
+            id: true,
+            title: true,
+            amount: true,
             options: true
         }
     });

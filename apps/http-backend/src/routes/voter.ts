@@ -7,6 +7,60 @@ import { getNextTask } from "../services/task";
 
 const router: Router = Router();
 
+router.get('/payout', authVoterMiddleware, async (req, res) => {
+    const voterId = Number(req.voterId);
+
+    const voter = await prismaClient.voter.findFirst({
+        where: {
+            id: voterId
+        }
+    })
+
+    if (!voter) {
+        res.status(400).json({
+            message: "Invalid voter"
+        })
+        return;
+    }
+
+    const txnSignature = "0x123123213" // TODO: get from the blockchain
+
+    const response = await prismaClient.$transaction(async tx => {
+        await tx.voter.update({
+            where: {
+                id: voterId
+            },
+            data: {
+                pending_amount: {
+                    decrement: voter.pending_amount
+                },
+                locked_amount: {
+                    increment: voter.pending_amount
+                }
+            }
+        })
+
+        const payout =await tx.payout.create({
+            data: {
+                voter_id: voterId,
+                amount: voter.pending_amount,
+                signature: txnSignature,
+                status: "Processing"
+            }
+        })
+        
+        return payout;
+    })
+
+    // TODO: send the transaction to the blockchain
+
+    res.json({
+        message: "Payout is processing",
+        id: response.id,
+        amount: response.amount
+    })
+})
+
 router.get('/balance', authVoterMiddleware, async (req, res) => {
     const voterId = Number(req.voterId);
 
@@ -50,7 +104,7 @@ router.post('/submission', authVoterMiddleware, async (req, res) => {
         return;
     }
 
-    const amount = task.amount / Number(process.env.VOTERS_PER_TASK || 1000);
+    const amount = Math.floor(task.amount / Number(process.env.VOTERS_PER_TASK || 1000));
 
     const response = await prismaClient.$transaction(async tx => {
         const submission = await tx.submission.create({
