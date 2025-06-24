@@ -55,7 +55,8 @@ router.get('/task', authUserMiddleware, async (req, res) => {
     })
 
     res.json({
-        result
+        result,
+        taskDetails
     })
 })
 
