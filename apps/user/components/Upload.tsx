@@ -1,91 +1,54 @@
 "use client";
 import axios from "axios";
 import React, { useState } from "react"
+import UploadImage from "./UploadImage";
+import { Button } from "./ui/button";
+import { useRouter } from "next/navigation";
 
 export default function Upload() {
     const [images, setImages] = useState<string[]>([]);
-    const [isUploading, setIsUploading] = useState(false);
+    const [title, setTitle] = useState('');
+    const router = useRouter();
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files
-        if (!files) {
-            return;
-        }
+    const handleImageAdd = (images: string[]) => {
+        setImages(prev => [...prev, ...images]);
+    }
 
-        setIsUploading(true);
-
-        const uploadPromises = Array.from(files).map(async (file) => {
-            const res = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/user/presignedUrl`, {
-                headers: {
-                    'Authorization': `${localStorage.getItem('token')}`
+    const handleSubmit = async () => {
+        const res = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/user/task`, {
+            title,
+            options: images.map(image => {
+                return {
+                    image_url: image
                 }
-            });
-
-            if (res.status !== 200) {
-                console.error("Failed submission");
-                return null;
+            }),
+            signature: 'test', // TODO: add signature
+            amount: 1 // TODO: add amount
+        }, {
+            headers: {
+                'Authorization': localStorage.getItem('token')
             }
+        })
 
-            const { data: presignedData } = res.data;
-            
-            if (!presignedData.signedUrl) {
-                console.error("Failed to upload image");
-                return null;
-            }
-
-            const { signedUrl, path } = presignedData;
-
-            const uploadResponse = await fetch(signedUrl, {
-                method: 'PUT',
-                body: file,
-                headers: {
-                    'Content-Type': file.type,
-                },
-            });
-
-            if (!uploadResponse.ok) {
-                console.error("Failed to upload file to database");
-                return null;
-            }
-            
-            const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/user-bucket/${path}`;
-            return publicUrl;
-        });
-
-        const uploadedImageUrls = (await Promise.all(uploadPromises)).filter(url => url !== null) as string[];
-        
-        setImages(prev => [...prev, ...uploadedImageUrls]);
-        setIsUploading(false);
+        router.push(`/task/${res.data.id}`)
     }
 
     return (
-        <div className="flex flex-col items-center justify-center p-8">
+        <div className="flex flex-col items-center justify-center p-8 gap-4 w-1/2">
+            <label>Task Title</label>
+            <input 
+            type="text" 
+            placeholder="Add Task Title" 
+            className="ml-4 mt-1 bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" 
+            onChange={e => setTitle(e.target.value)} required
+            />
             <div className="flex flex-wrap justify-center items-center gap-8 mb-4">
                 {images.map((image, index) => (
                     <img key={index} src={image} alt={`uploaded ${index + 1}`} className="w-80 h-52 object-cover rounded-md shadow-xl" />
                 ))}
             </div>
-            <label
-                htmlFor="files"
-                className={`w-40 h-40 border-2 border-dashed border-black cursor-pointer flex justify-center items-center rounded-md ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
-            >
-                <input
-                type="file"
-                className="hidden"
-                id="files"
-                multiple
-                onChange={handleImageUpload}
-                disabled={isUploading}
-                />
-                {isUploading ? (
-                    "Uploading..."
-                ) : (
-                    <div className="flex flex-col items-center justify-center">
-                        <span className="text-4xl font-light">+</span>
-                        <span className="mt-1">Upload Images</span>
-                    </div>
-                )}
-            </label>
-        </div> 
+            <UploadImage onImageAdd={handleImageAdd} />
+            <Button variant={"secondary"} className="cursor-pointer mt-4" onClick={handleSubmit}>Submit</Button>
+        </div>
     )
 }
