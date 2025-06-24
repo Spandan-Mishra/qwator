@@ -3,6 +3,7 @@ import userRouter from './routes/user';
 import voterRouter from './routes/voter';
 import { createClient } from '@supabase/supabase-js'
 import { config } from "dotenv";
+import cors from "cors";
 
 config();
 const app = express();
@@ -12,8 +13,11 @@ export const supabase = createClient(
 );
 
 app.use(express.json());
+app.use(cors());
 
 app.use('/api/user', userRouter);
 app.use('/api/voter', voterRouter);
 
-app.listen(3000);
+app.listen(3000, () => {
+  console.log("Server started on port 3000");
+});

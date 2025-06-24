@@ -106,8 +106,7 @@ router.get('/presignedUrl', authUserMiddleware, async (req, res) => {
     .from('user-bucket')
     .createSignedUploadUrl(`${userId}/image_${(Math.floor(Math.random() * 10**9))}.jpg`);
     
-    console.log(data);
-    res.json({
+    res.status(200).json({
         data
     })
 })
