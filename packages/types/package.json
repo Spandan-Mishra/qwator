@@ -1,12 +1,13 @@
 {
-  "name": "@repo/zod",
+  "name": "@repo/types",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "exports": {
-    "./types": "./src/types.ts"
+    ".": "./src/types.ts",
+    "./zod-types": "./src/zod-types.ts"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*"

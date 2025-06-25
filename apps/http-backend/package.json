@@ -10,7 +10,7 @@
   "devDependencies": {
     "@repo/database": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@repo/zod": "workspace:*",
+    "@repo/types": "workspace:*",
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
     "express": "^5.1.0",

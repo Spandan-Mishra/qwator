@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prismaClient } from "@repo/database"
 import jwt from "jsonwebtoken";
 import { authVoterMiddleware } from "../middleware";
-import { createSubmissionSchema } from "@repo/zod/types";
+import { createSubmissionSchema } from "@repo/types/zod-types";
 import { getNextTask } from "../services/task";
 
 const router: Router = Router();

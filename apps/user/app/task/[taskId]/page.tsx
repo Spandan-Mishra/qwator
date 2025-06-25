@@ -19,7 +19,7 @@ export default function Task() {
             try {
                 const res = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/user/task?taskId=${taskId}`, {
                     headers: {
-                        'Authorization': "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwiaWF0IjoxNzUwNzgxMTc1fQ.oJQxGVF2tDO3pQ86HNvYZISoXRWKpNMuAbDVwkrLVQs"
+                        'Authorization': localStorage.getItem('token')
                     }
                 });
                 setResult(res.data.result);

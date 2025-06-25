@@ -3,7 +3,8 @@ import { prismaClient } from "@repo/database"
 import jwt from "jsonwebtoken";
 import { authUserMiddleware } from "../middleware";
 import { supabase } from "..";
-import { createTaskSchema } from "@repo/zod/types";
+import { createTaskSchema } from "@repo/types/zod-types";
+import { Task } from "@repo/types";
 
 const router: Router = Router();
 const LAMPORTS_PER_SOL = 1_000_000_000;
