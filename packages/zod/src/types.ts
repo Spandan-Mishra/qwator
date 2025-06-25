@@ -6,7 +6,7 @@ export const createTaskSchema = z.object({
         z.object({
             image_url: z.string()
         })
-    ),
+    ).min(2).max(5),
     signature: z.string(),
     amount: z.number()
 })

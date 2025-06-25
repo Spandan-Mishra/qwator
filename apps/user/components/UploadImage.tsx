@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export default function UploadImage({ onImageAdd }: {
     onImageAdd: (images: string[]) => void
@@ -10,6 +11,11 @@ export default function UploadImage({ onImageAdd }: {
         const files = e.target.files
         if (!files) {
             return;
+        }
+
+        if (files.length > 5) {
+            toast.error("You can only upload up to 5 images");
+            return ;
         }
 
         setIsUploading(true);
