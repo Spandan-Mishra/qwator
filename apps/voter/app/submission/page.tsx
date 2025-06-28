@@ -48,7 +48,6 @@ export default function Submission() {
                         'Authorization': localStorage.getItem('token')
                     }
                 })
-                console.log(res.data.task);
                 setTask(res.data.task)
             } catch (error: any) {
                 setTask(null);

@@ -3,8 +3,10 @@ import { prismaClient } from "@repo/database"
 import jwt from "jsonwebtoken";
 import { authUserMiddleware } from "../middleware";
 import { supabase } from "..";
-import { createTaskSchema } from "@repo/types/zod-types";
+import { createTaskSchema, signinSchema } from "@repo/types/zod-types";
 import { Task } from "@repo/types";
+import nacl from "tweetnacl";
+import { PublicKey } from "@solana/web3.js";
 
 const router: Router = Router();
 const LAMPORTS_PER_SOL = 1_000_000_000;
@@ -114,11 +116,35 @@ router.get('/presignedUrl', authUserMiddleware, async (req, res) => {
 })
 
 router.post('/signin', async (req, res) => {
-    const address = "EzAwYUaFHrk5oUhjPjAHj42iN4WuRt4Rf4XiQViQ4vGP";
+    const data = req.body;
+    
+    const parsedData = signinSchema.safeParse(data);
+    
+    if(!parsedData.success) {
+        res.status(411).json({
+            message: "Incorrect data format"
+        })
+        return ;
+    }
+
+    const message = new TextEncoder().encode(`Sign in to qwator with wallet ${parsedData.data.address} as a user`);
+    
+    const verificationResult = nacl.sign.detached.verify(
+        message,
+        new Uint8Array(parsedData.data.signature.data),
+        new PublicKey(parsedData.data.address).toBytes()
+    )
+
+    if(!verificationResult) {
+        res.status(403).json({
+            message: "Invalid signature"
+        })
+        return ;
+    }
 
     const existingUser = await prismaClient.user.findFirst({
         where: {
-            address
+            address: parsedData.data.address
         }
     })
 
@@ -133,7 +159,7 @@ router.post('/signin', async (req, res) => {
     } else {
         const user = await prismaClient.user.create({
             data: {
-                address
+                address: parsedData.data.address,
             }
         })
 
@@ -141,7 +167,7 @@ router.post('/signin', async (req, res) => {
             id: user.id
         }, process.env.USER_SECRET || "secret")
 
-        res.json({
+        res.status(200).json({
             token
         })
     }

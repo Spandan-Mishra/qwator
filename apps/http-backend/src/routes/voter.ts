@@ -2,8 +2,10 @@ import { Router } from "express";
 import { prismaClient } from "@repo/database"
 import jwt from "jsonwebtoken";
 import { authVoterMiddleware } from "../middleware";
-import { createSubmissionSchema } from "@repo/types/zod-types";
+import { createSubmissionSchema, signinSchema } from "@repo/types/zod-types";
 import { getNextTask } from "../services/task";
+import nacl from "tweetnacl";
+import { PublicKey } from "@solana/web3.js";
 
 const router: Router = Router();
 
@@ -156,11 +158,35 @@ router.get('/nextTask', authVoterMiddleware, async (req, res) => {
 })
 
 router.post('/signin', async (req, res) => {
-    const address = "x9L3XaDQcurLgDhZHYPURiYagdK3RmHSycvtrsHXDV9";
+    const data = req.body;
+    
+    const parsedData = signinSchema.safeParse(data);
+    
+    if(!parsedData.success) {
+        res.status(411).json({
+            message: "Incorrect data format"
+        })
+        return ;
+    }
+
+    const message = new TextEncoder().encode(`Sign in to qwator with wallet ${parsedData.data.address} as voter`);
+    
+    const verificationResult = nacl.sign.detached.verify(
+        message,
+        new Uint8Array(parsedData.data.signature.data),
+        new PublicKey(parsedData.data.address).toBytes()
+    )
+
+    if(!verificationResult) {
+        res.status(403).json({
+            message: "Invalid signature"
+        })
+        return ;
+    }
 
     const existingVoter = await prismaClient.voter.findFirst({
         where: {
-            address
+            address: parsedData.data.address
         }
     })
 
@@ -175,7 +201,7 @@ router.post('/signin', async (req, res) => {
     } else {
         const voter = await prismaClient.voter.create({
             data: {
-                address,
+                address: parsedData.data.address,
                 pending_amount: 0,
                 locked_amount: 0
             }
@@ -185,7 +211,7 @@ router.post('/signin', async (req, res) => {
             id: voter.id
         }, process.env.VOTER_SECRET || "secret");
 
-        res.json({
+        res.status(200).json({
             token
         })
     }
