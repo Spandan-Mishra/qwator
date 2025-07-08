@@ -4,10 +4,15 @@ import React, { useState } from "react"
 import UploadImage from "./UploadImage";
 import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
+import { LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 
 export default function Upload() {
     const [images, setImages] = useState<string[]>([]);
     const [title, setTitle] = useState('');
+    const { publicKey, sendTransaction } = useWallet();
+    const { connection } = useConnection();
+    const [txnSignature, setTxnSignature] = useState<string>('');
     const router = useRouter();
 
     const handleImageAdd = (images: string[]) => {
@@ -22,8 +27,7 @@ export default function Upload() {
                     image_url: image
                 }
             }),
-            signature: 'test', // TODO: add signature
-            amount: 1 // TODO: add amount
+            signature: txnSignature,
         }, {
             headers: {
                 'Authorization': localStorage.getItem('token')
@@ -31,6 +35,27 @@ export default function Upload() {
         })
 
         router.push(`/task/${res.data.id}`)
+    }
+
+    const handlePayment = async () => {
+
+        const transaction = new Transaction().add(
+            SystemProgram.transfer({
+                fromPubkey: publicKey!,
+                toPubkey: new PublicKey(process.env.NEXT_PULIC_WALLET_ADDRESS!),
+                lamports: Math.floor(LAMPORTS_PER_SOL * 0.1)
+            })
+        )
+
+        const {
+            context: { slot: minContextSlot },
+            value: { blockhash, lastValidBlockHeight }
+        } = await connection.getLatestBlockhashAndContext();
+
+        const signature = await sendTransaction(transaction, connection, { minContextSlot });
+        
+        await connection.confirmTransaction({ blockhash, lastValidBlockHeight, signature });
+        setTxnSignature(signature);
     }
 
     return (
@@ -48,7 +73,13 @@ export default function Upload() {
                 ))}
             </div>
             <UploadImage onImageAdd={handleImageAdd} />
-            <Button variant={"secondary"} className="cursor-pointer mt-4" onClick={handleSubmit}>Submit</Button>
+            <Button 
+                variant={"secondary"} 
+                className="cursor-pointer mt-4" 
+                onClick={txnSignature ? handleSubmit : handlePayment}
+            >
+                {txnSignature ? "Submit" : "Pay 0.1 SOL"}
+            </Button>
         </div>
     )
 }

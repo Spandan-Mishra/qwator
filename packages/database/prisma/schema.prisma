@@ -26,6 +26,7 @@ model Voter {
   submissions         Submission[]
   pending_amount      Int    
   locked_amount       Int
+  payouts             Payout[]
 }
 
 model Task {
@@ -58,4 +59,19 @@ model Submission {
   task       Task   @relation(fields: [task_id], references: [id])
   amount     Int
   @@unique([voter_id, task_id])
+}
+
+model Payout {
+  id            Int     @id @default(autoincrement())
+  voter_id      Int
+  voter         Voter    @relation(fields: [voter_id], references: [id])
+  amount        Int
+  signature     String
+  status        TxnStatus
+}
+
+enum TxnStatus {
+  Processing
+  Success
+  Failure
 }

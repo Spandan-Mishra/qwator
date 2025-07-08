@@ -6,10 +6,10 @@ import { supabase } from "..";
 import { createTaskSchema, signinSchema } from "@repo/types/zod-types";
 import { Task } from "@repo/types";
 import nacl from "tweetnacl";
-import { PublicKey } from "@solana/web3.js";
+import { Connection, LAMPORTS_PER_SOL, PublicKey, SystemInstruction, SystemProgram, TransactionInstruction } from "@solana/web3.js";
 
 const router: Router = Router();
-const LAMPORTS_PER_SOL = 1_000_000_000;
+const connection = new Connection("http://api.devnet.solana.com")
 
 router.get('/task', authUserMiddleware, async (req, res) => {
     const taskId = Number(req.query.taskId);
@@ -76,12 +76,93 @@ router.post('/task', authUserMiddleware, async (req, res) => {
         return ;
     }
 
+    const user = await prismaClient.user.findFirst({
+        where: {
+            id: userId
+        }
+    })
+
+    if(!user) {
+        res.status(400).json({
+            message: "User not found"
+        })
+        return ;
+    }
+
+    const transaction = await connection.getTransaction(parsedData.data.signature, { 
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 1
+    });
+    if(!transaction) {
+        res.status(400).json({
+            message: "Transaction not found"
+        })
+        return ;
+    }
+    
+    const message = transaction.transaction.message;
+    const instructions = message.compiledInstructions;
+    const accountKeys = message.getAccountKeys().staticAccountKeys;
+
+    const transferIx = instructions.find((ix: any) => {
+        const programId = accountKeys[ix.programIdIndex];
+        return programId?.equals(SystemProgram.programId);
+    });
+    if (!transferIx) {
+        res.status(422).json({ message: "No SystemProgram transfer instruction found" });
+        return;
+    }
+
+    const keys = [];
+    for (const idx of transferIx.accountKeyIndexes) {
+        const pubkey = accountKeys[idx];
+        if (!pubkey) {
+            res.status(400).json({ message: "Invalid account key index in transfer instruction" });
+            return;
+        }
+        keys.push({
+            pubkey,
+            isSigner: message.isAccountSigner ? message.isAccountSigner(idx) : false,
+            isWritable: message.isAccountWritable ? message.isAccountWritable(idx) : false,
+        });
+    }
+
+    const txnInstruction = new TransactionInstruction({
+        keys,
+        programId: SystemProgram.programId,
+        data: Buffer.from(transferIx.data)
+    });
+
+    let fromPubkey, toPubkey, lamports;
+    try {
+        ({ fromPubkey, toPubkey, lamports } = SystemInstruction.decodeTransfer(txnInstruction));
+    } catch (e) {
+        res.status(422).json({ message: "Failed to decode transfer instruction" });
+        return;
+    }
+
+    if (
+        fromPubkey.toBase58() !== user.address ||
+        toPubkey.toBase58() !== process.env.WALLET_ADDRESS ||
+        (typeof lamports === 'bigint' ? lamports !== BigInt(Math.floor(LAMPORTS_PER_SOL * 0.1)) : lamports !== Math.floor(LAMPORTS_PER_SOL * 0.1))
+    ) {
+        res.status(422).json({ message: "Transfer details don't match expected values" });
+        return;
+    }
+
+    const signer = accountKeys[0]?.toBase58();
+    if (signer !== user.address) {
+        res.status(403).json({ message: "Transaction signature not signed by expected user" });
+        return;
+    }
+
+
     const response = await prismaClient.$transaction(async tx => {
         const task = await tx.task.create({
             data: {
                 title: parsedData.data?.title,
                 signature: parsedData.data?.signature,
-                amount: (parsedData.data?.amount ?? 0) * LAMPORTS_PER_SOL,
+                amount: Math.floor(LAMPORTS_PER_SOL * 0.1),
                 user_id: userId
             }
         })

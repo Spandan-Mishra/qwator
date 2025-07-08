@@ -16,7 +16,6 @@ export const createTaskSchema = z.object({
         })
     ).min(2).max(5),
     signature: z.string(),
-    amount: z.number()
 })
 
 export const createSubmissionSchema = z.object({
