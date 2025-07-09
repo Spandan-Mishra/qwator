@@ -38,8 +38,12 @@ const Appbar = () => {
     return (
         <div className="w-screen flex justify-between items-center p-4">
             <div>qwator voter</div>
-            <PayoutButton />
-            {publicKey ? <WalletDisconnectButton /> : <WalletMultiButton />}    
+            {publicKey 
+            ? <div className="flex items-center justify-center gap-4"> 
+                <PayoutButton />
+                <WalletDisconnectButton />
+             </div> 
+            : <WalletMultiButton />}    
         </div>    
     )
 }
