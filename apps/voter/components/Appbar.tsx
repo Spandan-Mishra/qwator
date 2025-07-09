@@ -1,10 +1,11 @@
 "use client";
 
 import { useWallet } from "@solana/wallet-adapter-react";
-import { WalletConnectButton, WalletDisconnectButton, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import { useEffect } from "react";
+import { WalletDisconnectButton, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { useEffect} from "react";
 import axios from "axios";
 import { toast } from "sonner";
+import { PayoutButton } from "./PayoutButton";
 
 const Appbar = () => {
     const { publicKey, signMessage, disconnect } = useWallet();
@@ -37,6 +38,7 @@ const Appbar = () => {
     return (
         <div className="w-screen flex justify-between items-center p-4">
             <div>qwator voter</div>
+            <PayoutButton />
             {publicKey ? <WalletDisconnectButton /> : <WalletMultiButton />}    
         </div>    
     )

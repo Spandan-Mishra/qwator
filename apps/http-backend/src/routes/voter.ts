@@ -5,9 +5,11 @@ import { authVoterMiddleware } from "../middleware";
 import { createSubmissionSchema, signinSchema } from "@repo/types/zod-types";
 import { getNextTask } from "../services/task";
 import nacl from "tweetnacl";
-import { PublicKey } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, SystemProgram, Transaction } from "@solana/web3.js";
+import decode from "bs58"
 
 const router: Router = Router();
+const connection = new Connection("http://api.devnet.solana.com")
 
 router.get('/payout', authVoterMiddleware, async (req, res) => {
     const voterId = Number(req.voterId);
@@ -25,42 +27,69 @@ router.get('/payout', authVoterMiddleware, async (req, res) => {
         return;
     }
 
-    const txnSignature = "0x123123213" // TODO: get from the blockchain
+    const transaction = new Transaction().add(
+        SystemProgram.transfer({
+            fromPubkey: new PublicKey(process.env.WALLET_ADDRESS!),
+            toPubkey: new PublicKey(voter.address),
+            lamports: voter.pending_amount
+        })
+    )
 
-    const response = await prismaClient.$transaction(async tx => {
-        await tx.voter.update({
-            where: {
-                id: voterId
-            },
-            data: {
-                pending_amount: {
-                    decrement: voter.pending_amount
+    const privateKey = Uint8Array.from(JSON.parse(process.env.PRIVATE_KEY!));
+    const keypair = Keypair.fromSecretKey(privateKey);
+    
+    try {
+        const signature = await sendAndConfirmTransaction(
+            connection,
+            transaction,
+            [keypair],
+        )
+
+        const response = await prismaClient.$transaction(async tx => {
+            const voterData = await tx.voter.updateMany({
+                where: {
+                    id: voterId,
+                    pending_amount: {
+                        gte: voter.pending_amount
+                    }
                 },
-                locked_amount: {
-                    increment: voter.pending_amount
+                data: {
+                    pending_amount: {
+                        decrement: voter.pending_amount
+                    },
+                    locked_amount: {
+                        increment: voter.pending_amount
+                    }
                 }
+            })
+
+            if (voterData.count === 0) {
+                throw new Error("Insufficient pending amount or already processing payment")
             }
+
+            const payout =await tx.payout.create({
+                data: {
+                    voter_id: voterId,
+                    amount: voter.pending_amount,
+                    signature: signature,
+                    status: "Processing"
+                }
+            })
+            
+            return payout;
         })
 
-        const payout =await tx.payout.create({
-            data: {
-                voter_id: voterId,
-                amount: voter.pending_amount,
-                signature: txnSignature,
-                status: "Processing"
-            }
+        // TODO: send the transaction to the blockchain
+        res.json({
+            message: "Payout is processing",
+            id: response.id,
+            amount: response.amount
         })
-        
-        return payout;
-    })
-
-    // TODO: send the transaction to the blockchain
-
-    res.json({
-        message: "Payout is processing",
-        id: response.id,
-        amount: response.amount
-    })
+    } catch(e) {
+        res.status(403).json({
+            message: "Transaction failed"
+        })
+    }
 })
 
 router.get('/balance', authVoterMiddleware, async (req, res) => {
@@ -80,7 +109,7 @@ router.get('/balance', authVoterMiddleware, async (req, res) => {
     }
 
     res.json({
-        balance: voter.pending_amount + voter.locked_amount
+        balance: voter.pending_amount
     })
 })
 
@@ -106,7 +135,7 @@ router.post('/submission', authVoterMiddleware, async (req, res) => {
         return;
     }
 
-    const amount = Math.floor(task.amount / Number(process.env.VOTERS_PER_TASK || 1000));
+    const amount = Math.floor(task.amount / 1000);
 
     const response = await prismaClient.$transaction(async tx => {
         const submission = await tx.submission.create({
